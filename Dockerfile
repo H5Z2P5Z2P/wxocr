@@ -13,6 +13,7 @@ ENV WORKERS=2
 ENV THREADS=4
 ENV MALLOC_ARENA_MAX=2
 ENV PYTHONUNBUFFERED=1
+ENV GLIBC_TUNABLES=glibc.malloc.trim_threshold=32768:glibc.malloc.mmap_threshold=65536
 EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/')" || exit 1
