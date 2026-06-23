@@ -9,8 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY . .
 
-ENV WORKERS=4
+ENV WORKERS=2
+ENV THREADS=4
+ENV MALLOC_ARENA_MAX=2
+ENV PYTHONUNBUFFERED=1
 EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/')" || exit 1
-CMD ["sh", "-c", "gunicorn -w ${WORKERS} -b 0.0.0.0:5000 --timeout 60 main:app"]
+CMD ["sh", "-c", "gunicorn -w ${WORKERS} --threads ${THREADS} -b 0.0.0.0:5000 --timeout 60 --max-requests 500 --max-requests-jitter 50 main:app"]

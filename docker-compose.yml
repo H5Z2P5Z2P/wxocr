@@ -4,10 +4,12 @@ services:
     # Or use a pre-built image instead of building locally:
     # image: golangboyme/wxocr
     container_name: wxocr
+    shm_size: 256m
     ports:
       - "${PORT:-5000}:5000"
     environment:
-      - WORKERS=${WORKERS:-4}
+      - WORKERS=${WORKERS:-2}
+      - THREADS=${THREADS:-4}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
