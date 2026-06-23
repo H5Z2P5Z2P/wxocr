@@ -49,6 +49,16 @@ else
 fi
 log "source revision: $(git -C "$SRC_DIR" log -1 --format='%h %s (%ci)')"
 
+# --- 3b. apply local patches ---
+PATCH_DIR="${SCRIPT_DIR}/patches"
+if [ -d "$PATCH_DIR" ]; then
+    for p in "$PATCH_DIR"/*.patch; do
+        [ -f "$p" ] || continue
+        log "applying patch: $(basename "$p")"
+        git -C "$SRC_DIR" apply "$p" || die "failed to apply patch: $(basename "$p")"
+    done
+fi
+
 # --- 4. configure (protobuf is pulled automatically via FetchContent) ---
 log "configuring cmake..."
 cmake -S "$SRC_DIR" -B "$BUILD_DIR" \
