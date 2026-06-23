@@ -5,6 +5,8 @@ services:
     build: .
     ports:
       - "5000:5000"
+    environment:
+      - WORKERS=4
     container_name: wechat-ocr-api
   
   # 使用预构建的镜像
