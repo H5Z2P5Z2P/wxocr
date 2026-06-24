@@ -277,6 +277,62 @@
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         }
 
+        /* Mode toggle */
+        .mode-toggle { display: inline-flex; gap: 2px; background: var(--line-soft); border-radius: 8px; padding: 3px; }
+        .mode-btn {
+            border: none; background: none; padding: 5px 12px; border-radius: 6px;
+            font-size: 12px; font-weight: 500; color: var(--ink-3);
+            cursor: pointer; transition: all .15s; white-space: nowrap;
+        }
+        .mode-btn.active {
+            background: var(--surface); color: var(--ink); font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08);
+        }
+
+        /* Brush canvas overlay */
+        .brush-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; opacity: 0;
+            transition: opacity .15s;
+        }
+        .img-wrap.brush-on .brush-canvas { pointer-events: auto; opacity: 1; }
+        .img-wrap.brush-on { cursor: crosshair; }
+        .img-wrap.brush-on .box { pointer-events: none; }
+        .img-wrap.brush-on .box .tag { display: none !important; }
+
+        /* Box selection states */
+        .box.selected {
+            border-color: var(--blue) !important;
+            background: rgba(37, 99, 235, 0.15) !important;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, .25);
+            opacity: 1 !important;
+        }
+        .box.dimmed { opacity: 0.2; }
+
+        /* Floating action bar */
+        .action-bar {
+            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+            display: none; align-items: center; gap: 8px;
+            background: #1e293b; border-radius: 12px; padding: 6px 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.25);
+            z-index: 10; white-space: nowrap;
+        }
+        .action-bar.show { display: flex; }
+        .action-bar .btn-copy {
+            background: var(--blue); color: #fff; border: none;
+            padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+            cursor: pointer;
+        }
+        .action-bar .btn-copy:hover { background: #1d4ed8; }
+        .action-bar .btn-copy:disabled { background: var(--ink-3); cursor: default; }
+        .action-bar .sep { width: 1px; height: 16px; background: rgba(255,255,255,.15); }
+        .action-bar .btn-text {
+            background: none; border: none; color: #fff; font-size: 12px; font-weight: 500;
+            cursor: pointer; padding: 4px 8px; border-radius: 6px;
+        }
+        .action-bar .btn-text:hover { background: rgba(255,255,255,.1); }
+        .action-bar .btn-text.muted { color: rgba(255,255,255,.45); }
+
         /* Toast */
         .toast {
             position: fixed; left: 50%; bottom: 32px;
@@ -318,16 +374,29 @@
         <div class="content">
             <section class="panel">
                 <div class="panel-head">
-                    <h2>识别预览</h2>
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <h2>识别预览</h2>
+                        <div class="mode-toggle" id="modeToggle">
+                            <button class="mode-btn active" data-mode="view">查看</button>
+                            <button class="mode-btn" data-mode="brush">涂抹选择</button>
+                        </div>
+                    </div>
                     <span class="meta" id="imgMeta">原图叠加识别框</span>
                 </div>
                 <div class="stage" id="stage">
                     <span class="ph" id="placeholder">上传图片后在此显示原图，并叠加识别区域</span>
                     <div class="img-wrap" id="imgWrap" style="display:none">
                         <img id="preview" alt="预览">
+                        <canvas class="brush-canvas" id="brushCanvas"></canvas>
+                        <div class="action-bar" id="actionBar">
+                            <button class="btn-copy" id="btnCopySel" disabled>复制选中 <span id="selCount">0</span></button>
+                            <div class="sep"></div>
+                            <button class="btn-text" id="btnSelectAll">全选</button>
+                            <button class="btn-text muted" id="btnClear">清除</button>
+                        </div>
                     </div>
                 </div>
-                <div class="legend">
+                <div class="legend" id="legend">
                     <span><i style="background:#07c160"></i>识别框</span>
                     <span><i style="background:#f59e0b"></i>可信率 95–99%</span>
                     <span><i style="background:#ef4444"></i>可信率 &lt;95%</span>
@@ -361,7 +430,7 @@
 
         <footer class="note">
             <span>API：<code>POST /ocr</code> ，请求体 <code>{"image": "&lt;base64&gt;"}</code></span>
-            <span>点击识别框或表格行可复制文字 · 悬停可双向高亮定位</span>
+            <span>涂抹模式下表格仅显示已选中文本 · 点击行可复制</span>
         </footer>
         <div class="toast" id="toast">已复制</div>
     </div>
@@ -376,8 +445,17 @@
         const stage = $('stage'), imgWrap = $('imgWrap'), preview = $('preview');
         const resultBody = $('resultBody'), countEl = $('count'), dimMeta = $('dimMeta');
         const fileNameEl = $('fileName'), placeholder = $('placeholder'), imgMeta = $('imgMeta');
+        const brushCanvas = $('brushCanvas'), actionBar = $('actionBar');
+        const legendEl = $('legend');
 
         let lastResult = null;
+
+        // ---------- brush mode state ----------
+        let brushMode = false;
+        let isDrawing = false;
+        let strokePts = [];
+        let selectedSet = new Set();
+        const brushCtx = brushCanvas.getContext('2d');
 
         // ---------- service health ----------
         (async function health() {
@@ -434,6 +512,7 @@
                 imgWrap.style.display = 'inline-block';
                 placeholder.style.display = 'none';
                 clearBoxes();
+                if (brushMode) exitBrush();
                 // auto-recognize once the image is decoded
                 preview.onload = () => { runOcr(e.target.result, ext); };
                 if (preview.complete) runOcr(e.target.result, ext);
@@ -472,27 +551,29 @@
             drawBoxes(items, res.width, res.height);
             countEl.textContent = items.length + ' 条';
             countEl.style.display = 'inline-flex';
-            dimMeta.textContent = (res.width || '?') + ' × ' + (res.height || '?') + ' px';
+            const dm = document.getElementById('dimMeta');
+            if (dm) dm.textContent = (res.width || '?') + ' × ' + (res.height || '?') + ' px';
         }
 
         // ---------- table ----------
-        function renderTable(items) {
+        function renderTable(items, origIdx) {
             resultBody.innerHTML = '';
             if (!items.length) {
                 resultBody.innerHTML = '<tr class="empty-row"><td colspan="3">未识别到文字</td></tr>';
                 return;
             }
             items.forEach((it, i) => {
+                const idx = origIdx ? origIdx[i] : i;
                 const pct = (it.rate * 100);
                 const cls = pct >= 99 ? 'hi' : pct >= 95 ? 'mid' : 'lo';
                 const tr = document.createElement('tr');
-                tr.dataset.idx = i;
+                tr.dataset.idx = idx;
                 tr.innerHTML =
                     '<td class="col-text" title="' + esc(it.text) + '">' + esc(it.text) + '<span class="copy-ico">⧉</span></td>' +
                     '<td><span class="rate ' + cls + '">' + pct.toFixed(2) + '%</span></td>' +
                     '<td class="coord">' + f(it.left) + ', ' + f(it.top) + ', ' + f(it.right) + ', ' + f(it.bottom) + '</td>';
-                tr.addEventListener('mouseenter', () => highlight(i, true));
-                tr.addEventListener('mouseleave', () => highlight(i, false));
+                tr.addEventListener('mouseenter', () => highlight(idx, true));
+                tr.addEventListener('mouseleave', () => highlight(idx, false));
                 tr.addEventListener('click', () => { copyText(it.text); tr.classList.add('copied'); setTimeout(() => tr.classList.remove('copied'), 1500); });
                 resultBody.appendChild(tr);
             });
@@ -544,6 +625,186 @@
                 else if (rBot > cBot) c.scrollTop = rBot - c.clientHeight;
             }
         }
+
+        // ---------- brush mode ----------
+        $('modeToggle').addEventListener('click', (e) => {
+            const btn = e.target.closest('.mode-btn');
+            if (!btn) return;
+            setMode(btn.dataset.mode);
+        });
+
+        function setMode(mode) {
+            brushMode = (mode === 'brush');
+            document.querySelectorAll('.mode-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.mode === mode));
+            if (!lastResult) return;
+            if (brushMode) {
+                imgWrap.classList.add('brush-on');
+                resizeBrushCanvas();
+                updateSelectionVisuals();
+                actionBar.classList.add('show');
+                updateLegendBrush();
+                updateTableBrush();
+            } else {
+                exitBrush();
+            }
+        }
+
+        function exitBrush() {
+            brushMode = false;
+            imgWrap.classList.remove('brush-on');
+            imgWrap.querySelectorAll('.box').forEach(b => b.classList.remove('selected', 'dimmed'));
+            clearBrushCanvas();
+            actionBar.classList.remove('show');
+            selectedSet.clear();
+            strokePts = [];
+            restoreLegend();
+            if (lastResult) {
+                const items = lastResult.ocr_response || [];
+                renderTable(items);
+                countEl.textContent = items.length + ' 条';
+            }
+        }
+
+        function resizeBrushCanvas() {
+            const w = preview.clientWidth || preview.naturalWidth;
+            const h = preview.clientHeight || preview.naturalHeight;
+            if (!w || !h) return;
+            brushCanvas.width = w;
+            brushCanvas.height = h;
+            redrawBrush();
+        }
+
+        function clearBrushCanvas() {
+            brushCtx.clearRect(0, 0, brushCanvas.width, brushCanvas.height);
+        }
+
+        function redrawBrush() {
+            clearBrushCanvas();
+            if (strokePts.length < 2) return;
+            brushCtx.strokeStyle = 'rgba(59,130,246,.35)';
+            brushCtx.lineWidth = Math.max(12, brushCanvas.width * 0.02);
+            brushCtx.lineCap = 'round';
+            brushCtx.lineJoin = 'round';
+            brushCtx.beginPath();
+            brushCtx.moveTo(strokePts[0].x, strokePts[0].y);
+            for (let i = 1; i < strokePts.length; i++) brushCtx.lineTo(strokePts[i].x, strokePts[i].y);
+            brushCtx.stroke();
+        }
+
+        function getCanvasPt(e) {
+            const r = brushCanvas.getBoundingClientRect();
+            return { x: e.clientX - r.left, y: e.clientY - r.top };
+        }
+
+        brushCanvas.addEventListener('pointerdown', (e) => {
+            if (!brushMode) return;
+            e.preventDefault();
+            isDrawing = true;
+            strokePts = [getCanvasPt(e)];
+            brushCanvas.setPointerCapture(e.pointerId);
+            clearBrushCanvas();
+        });
+
+        brushCanvas.addEventListener('pointermove', (e) => {
+            if (!isDrawing) return;
+            strokePts.push(getCanvasPt(e));
+            hitTest();
+            redrawBrush();
+        });
+
+        brushCanvas.addEventListener('pointerup', (e) => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            brushCanvas.releasePointerCapture(e.pointerId);
+            setTimeout(() => clearBrushCanvas(), 350);
+        });
+
+        brushCanvas.addEventListener('pointercancel', () => { isDrawing = false; clearBrushCanvas(); });
+
+        function hitTest() {
+            if (!lastResult) return;
+            const items = lastResult.ocr_response || [];
+            const natW = preview.naturalWidth, natH = preview.naturalHeight;
+            if (!natW || !natH) return;
+            const Y_FIX = 3;
+            const sx = natW / brushCanvas.width;
+            const sy = natH / brushCanvas.height;
+            const last = strokePts[strokePts.length - 1];
+            if (!last) return;
+            const ix = last.x * sx, iy = last.y * sy;
+            items.forEach((it, i) => {
+                if (ix >= it.left && ix <= it.right && iy >= it.top + Y_FIX && iy <= it.bottom + Y_FIX)
+                    selectedSet.add(i);
+            });
+            updateSelectionVisuals();
+        }
+
+        function updateSelectionVisuals() {
+            imgWrap.querySelectorAll('.box').forEach(b => {
+                const idx = +b.dataset.idx;
+                b.classList.toggle('selected', selectedSet.has(idx));
+                b.classList.toggle('dimmed', !selectedSet.has(idx));
+            });
+            updateActionBar();
+            if (brushMode) updateTableBrush();
+        }
+
+        function updateActionBar() {
+            const n = selectedSet.size;
+            $('selCount').textContent = n;
+            $('btnCopySel').disabled = n === 0;
+        }
+
+        function updateTableBrush() {
+            if (!lastResult) return;
+            const items = lastResult.ocr_response || [];
+            const sel = [], idx = [];
+            items.forEach((it, i) => { if (selectedSet.has(i)) { sel.push(it); idx.push(i); } });
+            renderTable(sel, idx);
+            countEl.textContent = sel.length + ' / ' + items.length + ' 条';
+            countEl.style.background = '#dbeafe';
+            countEl.style.color = '#2563eb';
+        }
+
+        function updateLegendBrush() {
+            legendEl.innerHTML =
+                '<span><i style="background:#2563eb"></i>已选中</span>' +
+                '<span><i style="background:#07c160;opacity:.3"></i>未选中</span>' +
+                '<span><i style="background:#3b82f6;border-radius:50%"></i>涂抹轨迹</span>' +
+                '<span style="margin-left:auto" id="dimMeta">' + (lastResult ? lastResult.width + ' × ' + lastResult.height + ' px' : '') + '</span>';
+        }
+
+        function restoreLegend() {
+            legendEl.innerHTML =
+                '<span><i style="background:#07c160"></i>识别框</span>' +
+                '<span><i style="background:#f59e0b"></i>可信率 95–99%</span>' +
+                '<span><i style="background:#ef4444"></i>可信率 &lt;95%</span>' +
+                '<span style="margin-left:auto" id="dimMeta">' + (lastResult ? lastResult.width + ' × ' + lastResult.height + ' px' : '') + '</span>';
+            countEl.style.background = '';
+            countEl.style.color = '';
+        }
+
+        // action bar buttons
+        $('btnCopySel').addEventListener('click', () => {
+            if (!lastResult || selectedSet.size === 0) return;
+            const items = lastResult.ocr_response || [];
+            const text = items.filter((_, i) => selectedSet.has(i)).map(it => it.text).join('\n');
+            copyText(text);
+        });
+        $('btnSelectAll').addEventListener('click', () => {
+            if (!lastResult) return;
+            const items = lastResult.ocr_response || [];
+            items.forEach((_, i) => selectedSet.add(i));
+            updateSelectionVisuals();
+        });
+        $('btnClear').addEventListener('click', () => {
+            selectedSet.clear();
+            updateSelectionVisuals();
+        });
+
+        // re-fit canvas on window resize
+        window.addEventListener('resize', () => { if (brushMode) resizeBrushCanvas(); });
 
         // ---------- helpers ----------
         const toastEl = $('toast');
