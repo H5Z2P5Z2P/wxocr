@@ -313,27 +313,28 @@
 
         /* Floating action bar */
         .action-bar {
-            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
-            display: none; align-items: center; gap: 8px;
-            background: #1e293b; border-radius: 12px; padding: 6px 8px;
-            box-shadow: 0 8px 24px rgba(0,0,0,.25);
-            z-index: 10; white-space: nowrap;
+            display: none; align-items: center; gap: 10px;
+            padding: 8px 12px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
         }
         .action-bar.show { display: flex; }
         .action-bar .btn-copy {
             background: var(--blue); color: #fff; border: none;
-            padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+            padding: 6px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
             cursor: pointer;
         }
         .action-bar .btn-copy:hover { background: #1d4ed8; }
-        .action-bar .btn-copy:disabled { background: var(--ink-3); cursor: default; }
-        .action-bar .sep { width: 1px; height: 16px; background: rgba(255,255,255,.15); }
+        .action-bar .btn-copy:disabled { background: var(--muted); cursor: default; }
         .action-bar .btn-text {
-            background: none; border: none; color: #fff; font-size: 12px; font-weight: 500;
-            cursor: pointer; padding: 4px 8px; border-radius: 6px;
+            background: var(--line-soft); border: 1px solid var(--line); color: var(--ink-2);
+            font-size: 12px; font-weight: 500;
+            cursor: pointer; padding: 5px 12px; border-radius: 6px;
+            transition: background .12s;
         }
-        .action-bar .btn-text:hover { background: rgba(255,255,255,.1); }
-        .action-bar .btn-text.muted { color: rgba(255,255,255,.45); }
+        .action-bar .btn-text:hover { background: var(--line); }
+        .action-bar .btn-text.muted { color: var(--muted); }
 
         /* Ctrl+click hint bar */
         .ctrl-hint {
@@ -404,14 +405,13 @@
                     <div class="img-wrap" id="imgWrap" style="display:none">
                         <img id="preview" alt="预览">
                         <canvas class="brush-canvas" id="brushCanvas"></canvas>
-                        <div class="action-bar" id="actionBar">
-                            <button class="btn-copy" id="btnCopySel" disabled>复制选中 <span id="selCount">0</span></button>
-                            <div class="sep"></div>
-                            <button class="btn-text" id="btnSelectAll">全选</button>
-                            <button class="btn-text muted" id="btnClear">清除</button>
-                        </div>
                         <div class="ctrl-hint" id="ctrlHint">选块模式 · 已选 <span class="cnt" id="ctrlCnt">0</span> 块 · Ctrl/Enter 复制 · Esc 取消</div>
                     </div>
+                </div>
+                <div class="action-bar" id="actionBar">
+                    <button class="btn-copy" id="btnCopySel" disabled>复制选中 <span id="selCount">0</span></button>
+                    <button class="btn-text" id="btnSelectAll">全选</button>
+                    <button class="btn-text muted" id="btnClear">清除</button>
                 </div>
                 <div class="legend" id="legend">
                     <span><i style="background:#07c160"></i>识别框</span>
