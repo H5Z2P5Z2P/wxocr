@@ -506,6 +506,9 @@
             const natW = preview.naturalWidth || ow;
             const natH = preview.naturalHeight || oh;
             if (!natW || !natH) return;
+            // WeChat OCR bounding boxes are biased ~3px upward (extra top padding,
+            // text spills below bottom). Shift boxes down to center text visually.
+            const Y_FIX = 3;
             items.forEach((it, i) => {
                 const pct = it.rate * 100;
                 const c = pct >= 99 ? '#07c160' : pct >= 95 ? '#f59e0b' : '#ef4444';
@@ -513,7 +516,7 @@
                 box.className = 'box';
                 box.dataset.idx = i;
                 box.style.left = (it.left / natW * 100) + '%';
-                box.style.top = (it.top / natH * 100) + '%';
+                box.style.top = ((it.top + Y_FIX) / natH * 100) + '%';
                 box.style.width = ((it.right - it.left) / natW * 100) + '%';
                 box.style.height = ((it.bottom - it.top) / natH * 100) + '%';
                 box.style.borderColor = c;
