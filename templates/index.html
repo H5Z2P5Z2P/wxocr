@@ -410,7 +410,7 @@
                             <button class="btn-text" id="btnSelectAll">全选</button>
                             <button class="btn-text muted" id="btnClear">清除</button>
                         </div>
-                        <div class="ctrl-hint" id="ctrlHint">Ctrl+点击选择 · 已选 <span class="cnt" id="ctrlCnt">0</span> 块</div>
+                        <div class="ctrl-hint" id="ctrlHint">选块模式 · 已选 <span class="cnt" id="ctrlCnt">0</span> 块 · 再次按 Ctrl 复制 · Esc 取消</div>
                     </div>
                 </div>
                 <div class="legend" id="legend">
@@ -475,7 +475,7 @@
         const brushCtx = brushCanvas.getContext('2d');
 
         // ---------- ctrl+click state ----------
-        let ctrlHeld = false;
+        let ctrlMode = false;
         let ctrlSelected = new Set();
         const ctrlHint = $('ctrlHint'), ctrlCnt = $('ctrlCnt');
 
@@ -535,7 +535,7 @@
                 placeholder.style.display = 'none';
                 clearBoxes();
                 if (brushMode) exitBrush();
-                clearCtrlSelection();
+                if (ctrlMode) exitCtrlMode(false);
                 // auto-recognize once the image is decoded
                 preview.onload = () => { runOcr(e.target.result, ext); };
                 if (preview.complete) runOcr(e.target.result, ext);
@@ -598,7 +598,7 @@
                 tr.addEventListener('mouseenter', () => highlight(idx, true));
                 tr.addEventListener('mouseleave', () => highlight(idx, false));
                 tr.addEventListener('click', (e) => {
-                    if (ctrlHeld) { toggleCtrlSelect(idx); return; }
+                    if (ctrlMode) { toggleCtrlSelect(idx); return; }
                     copyText(it.text); tr.classList.add('copied'); setTimeout(() => tr.classList.remove('copied'), 1500);
                 });
                 resultBody.appendChild(tr);
@@ -632,7 +632,7 @@
                 box.addEventListener('mouseenter', () => highlight(i, true));
                 box.addEventListener('mouseleave', () => highlight(i, false));
                 box.addEventListener('click', (e) => {
-                    if (ctrlHeld) { toggleCtrlSelect(i); return; }
+                    if (ctrlMode) { toggleCtrlSelect(i); return; }
                     copyText(it.text);
                 });
                 imgWrap.appendChild(box);
@@ -668,8 +668,7 @@
                 b.classList.toggle('active', b.dataset.mode === mode));
             if (!lastResult) return;
             if (brushMode) {
-                clearCtrlSelection();
-                ctrlHint.classList.remove('show');
+                if (ctrlMode) exitCtrlMode(false);
                 imgWrap.classList.add('brush-on');
                 resizeBrushCanvas();
                 updateSelectionVisuals();
@@ -838,22 +837,32 @@
             return sorted.map(i => items[i].text).join('\n');
         }
 
-        // ---------- ctrl+click multi-select ----------
+        // ---------- ctrl toggle selection mode ----------
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Control' && !ctrlHeld && !brushMode && lastResult) {
-                ctrlHeld = true;
-                ctrlHint.classList.add('show');
-                updateCtrlCnt();
+            if (e.key === 'Control' && !e.repeat && !brushMode && lastResult) {
+                if (!ctrlMode) enterCtrlMode();
+                else exitCtrlMode(true);
             }
+            if (e.key === 'Escape' && ctrlMode) exitCtrlMode(false);
         });
 
-        document.addEventListener('keyup', (e) => {
-            if (e.key === 'Control' && ctrlHeld) {
-                ctrlHeld = false;
-                ctrlHint.classList.remove('show');
-                if (ctrlSelected.size > 0) copyCtrlSelected();
+        function enterCtrlMode() {
+            ctrlMode = true;
+            ctrlHint.classList.add('show');
+            updateCtrlCnt();
+        }
+
+        function exitCtrlMode(copy) {
+            ctrlMode = false;
+            ctrlHint.classList.remove('show');
+            if (copy && ctrlSelected.size > 0) {
+                const text = getSortedSelectedText(ctrlSelected);
+                copyText(text);
+                setTimeout(() => clearCtrlSelection(), 1500);
+            } else {
+                clearCtrlSelection();
             }
-        });
+        }
 
         function toggleCtrlSelect(idx) {
             if (ctrlSelected.has(idx)) ctrlSelected.delete(idx);
@@ -879,13 +888,6 @@
             ctrlSelected.clear();
             updateCtrlVisuals();
             updateCtrlCnt();
-        }
-
-        function copyCtrlSelected() {
-            const text = getSortedSelectedText(ctrlSelected);
-            if (!text) return;
-            copyText(text);
-            setTimeout(() => clearCtrlSelection(), 1500);
         }
 
         // action bar buttons
