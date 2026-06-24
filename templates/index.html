@@ -410,7 +410,7 @@
                             <button class="btn-text" id="btnSelectAll">全选</button>
                             <button class="btn-text muted" id="btnClear">清除</button>
                         </div>
-                        <div class="ctrl-hint" id="ctrlHint">选块模式 · 已选 <span class="cnt" id="ctrlCnt">0</span> 块 · 再次按 Ctrl 复制 · Esc 取消</div>
+                        <div class="ctrl-hint" id="ctrlHint">选块模式 · 已选 <span class="cnt" id="ctrlCnt">0</span> 块 · Ctrl/Enter 复制 · Esc 取消</div>
                     </div>
                 </div>
                 <div class="legend" id="legend">
@@ -844,6 +844,7 @@
                 else exitCtrlMode(true);
             }
             if (e.key === 'Escape' && ctrlMode) exitCtrlMode(false);
+            if (e.key === 'Enter' && ctrlMode) exitCtrlMode(true);
         });
 
         function enterCtrlMode() {
