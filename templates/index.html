@@ -4,437 +4,956 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>微信OCR文字识别工具</title>
+    <title>微信文字识别 · OCR</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
     <style>
         :root {
-            --primary-color: #07c160;
-            --secondary-color: #576b95;
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --ink: #0f172a;
+            --ink-2: #475569;
+            --ink-3: #64748b;
+            --muted: #94a3b8;
+            --line: #e2e8f0;
+            --line-soft: #f1f5f9;
+            --brand: #07c160;
+            --brand-soft: #ecfdf5;
+            --brand-ink: #059669;
+            --blue: #2563eb;
+            --amber: #f59e0b;
+            --amber-ink: #d97706;
+            --red: #ef4444;
+            --radius: 14px;
+            --radius-sm: 8px;
         }
+
+        * { box-sizing: border-box; }
 
         body {
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            max-width: 1200px;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                "Hiragino Sans GB", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.5;
+        }
+
+        .wrap {
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-            color: #333;
+            padding: 32px 40px 64px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
         }
 
-        .container {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        /* Header */
+        header.bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
         }
-
+        header.bar .titles { display: flex; flex-direction: column; gap: 6px; }
         h1 {
-            color: var(--primary-color);
-            text-align: center;
-            margin-bottom: 30px;
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+        .sub { color: var(--ink-3); font-size: 14px; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 36px;
+            padding: 0 16px;
+            background: var(--brand);
+            color: #fff;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .badge .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 0 0 0 rgba(255,255,255,.7);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255,255,255,.6); }
+            70% { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
         }
 
-        .upload-section {
-            border: 2px dashed #ddd;
-            border-radius: 8px;
-            padding: 30px;
-            text-align: center;
-            margin: 20px 0;
-            transition: all 0.3s;
-        }
-
-        .upload-section:hover {
-            border-color: var(--primary-color);
-            background: #f8fff9;
-        }
-
-        .preview-image {
-            max-width: 100%;
-            max-height: 400px;
-            margin: 20px 0;
-            border-radius: 8px;
-            display: none;
-        }
-
-        .input-group {
-            margin: 20px 0;
-        }
-
-        input[type="file"],
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            margin: 10px 0;
-        }
-
-        button {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-
-        button:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-
-        .result-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            display: none;
-        }
-
-        .result-table th,
-        .result-table td {
-            padding: 12px;
-            border: 1px solid #eee;
-            text-align: left;
-        }
-
-        .result-table th {
-            background: var(--secondary-color);
-            color: white;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            color: var(--primary-color);
-            margin: 20px 0;
-        }
-
-        .error {
-            color: #ff4d4f;
-            margin: 10px 0;
-            display: none;
-        }
-
-        .image-container {
+        /* Dropzone */
+        .drop {
             position: relative;
-            margin: 20px 0;
-            display: inline-block;
-        }
-
-        .text-box {
-            position: absolute;
-            border: 2px solid var(--primary-color);
-            background-color: rgba(7, 193, 96, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            min-height: 132px;
+            padding: 24px;
+            background: var(--surface);
+            border: 2px dashed var(--muted);
+            border-radius: var(--radius);
             cursor: pointer;
+            transition: border-color .15s, background .15s, transform .1s;
+            text-align: center;
+        }
+        .drop:hover { border-color: var(--brand); background: #fafefb; }
+        .drop.drag {
+            border-color: var(--brand);
+            background: var(--brand-soft);
+            transform: scale(1.005);
+        }
+        .drop .ico {
+            width: 48px; height: 48px; flex: 0 0 48px;
+            border-radius: 12px;
+            background: var(--brand-soft);
+            color: var(--brand-ink);
+            display: grid; place-items: center;
+            font-size: 26px; font-weight: 700;
+        }
+        .drop .dz-txt { display: flex; flex-direction: column; gap: 4px; }
+        .drop .dz-main { font-size: 16px; font-weight: 600; }
+        .drop .dz-hint { font-size: 12px; color: var(--muted); }
+        .drop input[type=file] { display: none; }
+        .drop .file-name {
+            position: absolute; bottom: 10px; right: 14px;
+            font-size: 12px; color: var(--ink-3);
+            background: var(--line-soft); padding: 3px 8px; border-radius: 6px;
+            max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
-        .text-tooltip {
+        /* Status line */
+        .status {
+            min-height: 22px;
+            font-size: 13px;
+            color: var(--ink-3);
+            display: flex; align-items: center; gap: 8px;
+            transition: background .15s, color .15s, padding .15s;
+        }
+        .status.success {
+            background: var(--brand-soft);
+            color: var(--brand-ink);
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+        }
+        .status .sdot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--brand); flex: 0 0 8px;
+        }
+        .spinner {
+            width: 14px; height: 14px; border-radius: 50%;
+            border: 2px solid var(--line); border-top-color: var(--brand);
+            animation: spin .7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .status.error { color: var(--red); }
+
+        /* Content layout */
+        .content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+        @media (max-width: 980px) {
+            .wrap { padding: 20px 16px 48px; }
+            h1 { font-size: 22px; }
+            .action-bar { flex-wrap: wrap; }
+            .action-bar .btn-copy { flex: 1; min-width: 140px; }
+        }
+        button { -webkit-tap-highlight-color: transparent; }
+
+        .panel { display: flex; flex-direction: column; gap: 12px; }
+        .panel-head { display: flex; justify-content: space-between; align-items: center; }
+        .panel-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+        .panel-head .meta { font-size: 12px; color: var(--muted); }
+        .count {
+            padding: 2px 10px; height: 22px;
+            display: inline-flex; align-items: center;
+            background: var(--brand-soft); color: var(--brand-ink);
+            border-radius: 6px; font-size: 11px; font-weight: 600;
+        }
+
+        /* Image preview */
+        .stage {
+            background: repeating-conic-gradient(#eef2f6 0% 25%, #fff 0% 50%) 50% / 24px 24px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            overflow: hidden;
+            min-height: 320px;
+            display: grid;
+            place-items: center;
+            position: relative;
+        }
+        .stage .ph { color: var(--muted); font-size: 13px; }
+        .img-wrap {
+            position: relative;
+            display: inline-block;
+            line-height: 0;
+            max-width: 100%;
+        }
+        .img-wrap img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            user-select: none;
+        }
+        .box {
             position: absolute;
-            background: white;
-            border: 1px solid #ddd;
-            padding: 8px;
-            border-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            z-index: 100;
+            border: 2px solid var(--brand);
+            background: rgba(7, 193, 96, 0.08);
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background .12s, box-shadow .12s;
+        }
+        .box:hover, .box.active {
+            background: rgba(7, 193, 96, 0.28);
+            box-shadow: 0 0 0 2px rgba(7,193,96,.35);
+            z-index: 5;
+        }
+        .box .tag {
+            position: absolute;
+            top: -18px; left: -2px;
+            font-size: 10px; line-height: 1;
+            background: var(--brand);
+            color: #fff;
+            padding: 2px 5px;
+            border-radius: 3px;
+            white-space: nowrap;
             display: none;
-            max-width: 300px;
-            word-break: break-word;
+        }
+        .box:hover .tag, .box.active .tag { display: block; }
+
+        .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 11px; color: var(--ink-3); }
+        .legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .legend i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+
+        /* Results table */
+        .table-card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .table-scroll { max-height: 520px; overflow: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead th {
+            position: sticky; top: 0;
+            background: #f8fafc;
+            color: var(--ink-2);
+            font-size: 12px; font-weight: 600;
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--line);
+            z-index: 1;
+        }
+        tbody td { padding: 9px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+        tbody tr { cursor: pointer; transition: background .1s; }
+        tbody tr:hover, tbody tr.active { background: var(--brand-soft); }
+        tbody tr.selected { background: #dbeafe !important; }
+        tbody tr.selected:hover { background: #bfdbfe !important; }
+        tbody tr:last-child td { border-bottom: none; }
+        .col-text { max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .col-text .copy-ico { opacity: 0; margin-left: 6px; font-size: 11px; color: var(--muted); transition: opacity .12s; }
+        tbody tr:hover .copy-ico, tbody tr.copied .copy-ico { opacity: 1; }
+        tbody tr.copied .copy-ico { color: var(--brand-ink); }
+        .rate { font-weight: 600; }
+        .rate.hi { color: var(--brand-ink); }
+        .rate.mid { color: var(--amber-ink); }
+        .rate.lo { color: var(--red); }
+        .coord { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .empty-row td { text-align: center; color: var(--muted); padding: 32px; }
+
+        /* Footer / API note */
+        footer.note {
+            font-size: 12px; color: var(--muted);
+            border-top: 1px solid var(--line); padding-top: 16px;
+            display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+        }
+        footer.note code {
+            background: var(--line-soft); padding: 2px 6px; border-radius: 4px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         }
 
-        .confidence {
-            color: var(--primary-color);
-            font-weight: bold;
+        /* Mode toggle */
+        .mode-toggle { display: inline-flex; gap: 2px; background: var(--line-soft); border-radius: 8px; padding: 3px; }
+        .mode-btn {
+            border: none; background: none; padding: 5px 12px; border-radius: 6px;
+            font-size: 12px; font-weight: 500; color: var(--ink-3);
+            cursor: pointer; transition: all .15s; white-space: nowrap;
         }
+        .mode-btn.active {
+            background: var(--surface); color: var(--ink); font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08);
+        }
+
+        /* Brush canvas overlay */
+        .brush-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; opacity: 0;
+            transition: opacity .15s;
+        }
+        .img-wrap.brush-on .brush-canvas { pointer-events: auto; opacity: 1; touch-action: none; }
+        .img-wrap.brush-on { cursor: crosshair; touch-action: none; }
+        .img-wrap.brush-on .box { pointer-events: none; }
+        .img-wrap.brush-on .box .tag { display: none !important; }
+
+        /* Box selection states */
+        .box.selected {
+            border-color: var(--blue) !important;
+            background: rgba(37, 99, 235, 0.15) !important;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, .25);
+            opacity: 1 !important;
+        }
+        .box.dimmed { opacity: 0.2; }
+
+        /* Floating action bar */
+        .action-bar {
+            display: none; align-items: center; gap: 10px;
+            padding: 8px 12px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+        }
+        .action-bar.show { display: flex; }
+        .action-bar .btn-copy {
+            background: var(--blue); color: #fff; border: none;
+            padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+            cursor: pointer; touch-action: manipulation; min-height: 36px;
+        }
+        .action-bar .btn-copy:hover { background: #1d4ed8; }
+        .action-bar .btn-copy:active { transform: scale(.97); }
+        .action-bar .btn-copy:disabled { background: var(--muted); cursor: default; }
+        .action-bar .btn-text {
+            background: var(--line-soft); border: 1px solid var(--line); color: var(--ink-2);
+            font-size: 12px; font-weight: 500;
+            cursor: pointer; padding: 8px 14px; border-radius: 6px;
+            transition: background .12s; touch-action: manipulation; min-height: 36px;
+        }
+        .action-bar .btn-text:hover { background: var(--line); }
+        .action-bar .btn-text:active { transform: scale(.97); }
+        .action-bar .btn-text.danger { color: var(--red); border-color: #fecaca; background: #fef2f2; }
+        .action-bar .btn-text.danger:hover { background: #fee2e2; }
+
+        /* Ctrl+click hint bar */
+        .ctrl-hint {
+            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+            display: none; align-items: center; gap: 8px;
+            background: rgba(30,41,59,.92); color: #fff;
+            border-radius: 10px; padding: 6px 14px;
+            font-size: 12px; font-weight: 500;
+            box-shadow: 0 4px 16px rgba(0,0,0,.2);
+            z-index: 10; white-space: nowrap; pointer-events: none;
+            transition: opacity .2s;
+        }
+        .ctrl-hint.show { display: flex; }
+        .ctrl-hint .cnt { color: #93c5fd; font-weight: 700; }
+
+        /* Toast */
+        .toast {
+            position: fixed; left: 50%; bottom: 32px;
+            transform: translateX(-50%) translateY(20px);
+            background: #1f2937; color: #fff;
+            padding: 10px 18px; border-radius: 8px;
+            font-size: 13px; font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,0,0,.18);
+            opacity: 0; pointer-events: none;
+            transition: opacity .2s, transform .2s;
+            z-index: 999;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <h1>微信OCR文字识别工具</h1>
-
-        <!-- 上传区域 -->
-        <div class="upload-section">
-            <div class="input-group">
-                <input type="file" id="fileInput" accept="image/*">
-                <p>或拖拽图片到此区域</p>
-                <input type="text" id="urlInput" placeholder="输入图片URL地址">
+    <div class="wrap">
+        <header class="bar">
+            <div class="titles">
+                <h1>微信文字识别 · OCR</h1>
+                <span class="sub">拖拽 / 点击 / 粘贴上传图片，自动框选识别区域并输出文字、可信率与坐标</span>
             </div>
-            <button onclick="processImage()">开始识别</button>
+            <span class="badge" id="svcBadge"><span class="dot"></span><span id="svcText">检测服务中</span></span>
+        </header>
+
+        <label class="drop" id="drop" for="fileInput" title="拖拽 · 点击 · Ctrl+V 粘贴图片">
+            <div class="ico">+</div>
+            <div class="dz-txt">
+                <span class="dz-main">拖拽 · 点击 · 粘贴（Ctrl+V）上传图片</span>
+                <span class="dz-hint">支持 PNG · JPG · JPEG · WEBP · BMP · GIF · 单文件最大 20MB</span>
+            </div>
+            <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/bmp,image/gif,image/*">
+            <span class="file-name" id="fileName" style="display:none"></span>
+        </label>
+
+        <div class="status" id="status"></div>
+
+        <div class="content">
+            <section class="panel">
+                <div class="panel-head">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <h2>识别预览</h2>
+                        <div class="mode-toggle" id="modeToggle">
+                            <button class="mode-btn active" data-mode="view">查看</button>
+                            <button class="mode-btn" data-mode="brush">涂抹选择</button>
+                        </div>
+                    </div>
+                    <span class="meta" id="imgMeta">原图叠加识别框</span>
+                </div>
+                <div class="stage" id="stage">
+                    <span class="ph" id="placeholder">上传图片后在此显示原图，并叠加识别区域</span>
+                    <div class="img-wrap" id="imgWrap" style="display:none">
+                        <img id="preview" alt="预览">
+                        <canvas class="brush-canvas" id="brushCanvas"></canvas>
+                        <div class="ctrl-hint" id="ctrlHint">选块模式 · 已选 <span class="cnt" id="ctrlCnt">0</span> 块 · Ctrl/Enter 复制 · Esc 取消</div>
+                    </div>
+                </div>
+                <div class="action-bar" id="actionBar">
+                    <button class="btn-copy" id="btnCopySel" disabled>复制选中 <span id="selCount">0</span></button>
+                    <button class="btn-text" id="btnSelectAll">全选</button>
+                    <button class="btn-text danger" id="btnClear">清除</button>
+                </div>
+                <div class="legend" id="legend">
+                    <span><i style="background:#07c160"></i>识别框</span>
+                    <span><i style="background:#f59e0b"></i>可信率 95–99%</span>
+                    <span><i style="background:#ef4444"></i>可信率 &lt;95%</span>
+                    <span style="margin-left:auto" id="dimMeta"></span>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>识别结果</h2>
+                    <span class="count" id="count" style="display:none">0 条</span>
+                </div>
+                <div class="table-card">
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:42%">文字</th>
+                                    <th style="width:20%">可信率</th>
+                                    <th>坐标 L, T, R, B</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultBody">
+                                <tr class="empty-row"><td colspan="3">暂无数据，请先上传图片</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </div>
 
-        <!-- 图片预览 -->
-        <div class="image-container" id="imageContainer">
-            <img id="preview" class="preview-image">
-            <!-- 文本框将在这里动态添加 -->
-        </div>
-
-        <!-- 加载状态 -->
-        <div class="loading" id="loading">识别中，请稍候...</div>
-
-        <!-- 错误提示 -->
-        <div class="error" id="error"></div>
-
-        <!-- 结果显示 -->
-        <table class="result-table" id="resultTable">
-            <thead>
-                <tr>
-                    <th>文本内容</th>
-                    <th>置信度</th>
-                    <th>位置信息 (左, 上, 右, 下)</th>
-                </tr>
-            </thead>
-            <tbody id="resultBody"></tbody>
-        </table>
-
-        <!-- 使用说明 -->
-        <h2>API接口说明</h2>
-        <h3>请求方式</h3>
-        <pre>POST /ocr</pre>
-
-        <h3>请求示例</h3>
-        <pre>
-{
-  "image": "BASE64_ENCODED_IMAGE_DATA"
-}</pre>
-
-        <h3>返回示例</h3>
-        <pre id="responseSample"></pre>
+        <footer class="note">
+            <span>API：<code>POST /ocr</code> ，请求体 <code>{"image": "&lt;base64&gt;"}</code></span>
+            <span>涂抹模式下表格仅显示已选中文本 · 点击行可复制</span>
+        </footer>
+        <div class="toast" id="toast">已复制</div>
     </div>
 
     <script>
-        // 默认的API地址
-        const API_ENDPOINT = window.location.origin + '/ocr';
+        const API = window.location.origin + '/ocr';
+        const ACCEPT = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'];
+        const MAX_BYTES = 20 * 1024 * 1024;
 
-        // 初始化拖放功能
-        const uploadSection = document.querySelector('.upload-section');
-        uploadSection.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadSection.style.backgroundColor = '#f0fff0';
-        });
+        const $ = (id) => document.getElementById(id);
+        const drop = $('drop'), fileInput = $('fileInput'), statusEl = $('status');
+        const stage = $('stage'), imgWrap = $('imgWrap'), preview = $('preview');
+        const resultBody = $('resultBody'), countEl = $('count'), dimMeta = $('dimMeta');
+        const fileNameEl = $('fileName'), placeholder = $('placeholder'), imgMeta = $('imgMeta');
+        const brushCanvas = $('brushCanvas'), actionBar = $('actionBar');
+        const legendEl = $('legend');
 
-        uploadSection.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadSection.style.backgroundColor = '';
-            const file = e.dataTransfer.files[0];
-            handleFile(file);
-        });
+        let lastResult = null;
 
-        // 处理文件选择
-        document.getElementById('fileInput').addEventListener('change', function (e) {
-            handleFile(e.target.files[0]);
-        });
+        // ---------- brush mode state ----------
+        let brushMode = false;
+        let isDrawing = false;
+        let strokePts = [];
+        let selectedSet = new Set();
+        const brushCtx = brushCanvas.getContext('2d');
 
-        // 处理文件上传
-        async function handleFile(file) {
-            if (!file) return;
-            if (!file.type.startsWith('image/')) {
-                showError('请上传图片文件');
-                return;
+        // ---------- ctrl+click state ----------
+        let ctrlMode = false;
+        let ctrlSelected = new Set();
+        const ctrlHint = $('ctrlHint'), ctrlCnt = $('ctrlCnt');
+
+        // ---------- service health ----------
+        (async function health() {
+            try {
+                const r = await fetch(window.location.origin + '/', { method: 'GET' });
+                $('svcText').textContent = r.ok ? '在线服务' : '服务异常';
+                if (!r.ok) $('svcBadge').style.background = '#ef4444';
+            } catch {
+                $('svcText').textContent = '服务离线';
+                $('svcBadge').style.background = '#ef4444';
             }
+        })();
 
-            // 显示预览图片
+        // ---------- upload: drag / click / paste ----------
+        ['dragenter', 'dragover'].forEach(ev =>
+            drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('drag'); }));
+        ['dragleave', 'drop'].forEach(ev =>
+            drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('drag'); }));
+        drop.addEventListener('drop', (e) => {
+            const f = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (f) ingest(f);
+        });
+        fileInput.addEventListener('change', (e) => {
+            const f = e.target.files && e.target.files[0];
+            if (f) ingest(f);
+        });
+        window.addEventListener('paste', (e) => {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const it of items) {
+                if (it.type.startsWith('image/')) { ingest(it.getAsFile()); break; }
+            }
+        });
+
+        function extOf(file) {
+            const m = (file.name || '').toLowerCase().match(/\.([a-z0-9]+)$/);
+            return m ? m[1] : (file.type.split('/')[1] || '').toLowerCase();
+        }
+
+        function ingest(file) {
+            if (!file) return;
+            const ext = extOf(file);
+            const okType = file.type.startsWith('image/') || ACCEPT.includes(ext);
+            if (!okType) { setStatus('不支持的文件格式，请使用 ' + ACCEPT.join(' / '), true); return; }
+            if (file.size > MAX_BYTES) { setStatus('文件过大（' + (file.size / 1048576).toFixed(1) + ' MB），上限 20MB', true); return; }
+
+            fileNameEl.textContent = file.name || ('clipboard.' + (ext || 'png'));
+            fileNameEl.style.display = 'block';
+            fileInput.value = '';
+
             const reader = new FileReader();
             reader.onload = (e) => {
-                document.getElementById('preview').src = e.target.result;
-                document.getElementById('preview').style.display = 'block';
-
-                // 清除之前的文本框
-                const imageContainer = document.getElementById('imageContainer');
-                const existingBoxes = imageContainer.querySelectorAll('.text-box, .text-tooltip');
-                existingBoxes.forEach(box => box.remove());
+                preview.src = e.target.result;
+                imgWrap.style.display = 'inline-block';
+                placeholder.style.display = 'none';
+                clearBoxes();
+                if (brushMode) exitBrush();
+                if (ctrlMode) exitCtrlMode(false);
+                // auto-recognize once the image is decoded
+                preview.onload = () => { runOcr(e.target.result, ext); };
+                if (preview.complete) runOcr(e.target.result, ext);
             };
+            reader.onerror = () => setStatus('读取文件失败', true);
             reader.readAsDataURL(file);
         }
 
-        // 开始处理图像
-        async function processImage() {
-            const file = document.getElementById('fileInput').files[0];
-            const url = document.getElementById('urlInput').value;
-            let base64Data = '';
-
+        // ---------- OCR call ----------
+        async function runOcr(dataUrl, ext) {
+            setStatus('<span class="spinner"></span>识别中…');
             try {
-                showLoading();
-                clearError();
-
-                if (file) {
-                    base64Data = await fileToBase64(file);
-                } else if (url) {
-                    base64Data = await urlToBase64(url);
-                } else {
-                    showError('请选择图片或输入图片URL');
-                    return;
-                }
-
-                // 发送请求
-                const response = await fetch(API_ENDPOINT, {
+                const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+                const resp = await fetch(API, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ image: base64Data })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64 })
                 });
-
-                const data = await response.json();
+                const data = await resp.json();
                 handleResponse(data);
-            } catch (error) {
-                showError(`请求失败：${error.message}`);
-            } finally {
-                hideLoading();
+            } catch (err) {
+                setStatus('请求失败：' + err.message, true);
             }
         }
 
-        // 处理响应数据
         function handleResponse(data) {
-            // 处理新的响应结构
-            const resultData = data.result || data;
-
-            if (resultData.errcode !== 0) {
-                showError(`识别失败，错误码：${resultData.errcode}`);
+            const res = data.result || data;
+            if (!res || res.errcode !== 0) {
+                setStatus('识别失败，错误码：' + (res && res.errcode), true);
                 return;
             }
-
-            // 显示结果表格
-            const tbody = document.getElementById('resultBody');
-            tbody.innerHTML = '';
-            resultData.ocr_response.forEach(item => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${item.text}</td>
-                    <td>${(item.rate * 100).toFixed(2)}%</td>
-                    <td>(${item.left.toFixed(1)}, ${item.top.toFixed(1)}, 
-                        ${item.right.toFixed(1)}, ${item.bottom.toFixed(1)})</td>
-                `;
-                tbody.appendChild(row);
-            });
-            document.getElementById('resultTable').style.display = 'table';
-
-            // 在图片上绘制识别区域
-            drawTextBoxes(resultData.ocr_response, resultData.width, resultData.height);
+            lastResult = res;
+            const items = res.ocr_response || [];
+            setStatus('<span class="sdot"></span>识别完成 · ' + items.length + ' 个文本块 · 耗时可信率见下表', 'success');
+            renderTable(items);
+            drawBoxes(items, res.width, res.height);
+            countEl.textContent = items.length + ' 条';
+            countEl.style.display = 'inline-flex';
+            const dm = document.getElementById('dimMeta');
+            if (dm) dm.textContent = (res.width || '?') + ' × ' + (res.height || '?') + ' px';
+            const savedMode = (() => { try { return localStorage.getItem('wxocr-mode'); } catch(e) { return null; } })();
+            if (savedMode) setMode(savedMode, true);
         }
 
-        // 在图片上绘制文本框
-        function drawTextBoxes(ocrResults, originalWidth, originalHeight) {
-            const imageContainer = document.getElementById('imageContainer');
-            const preview = document.getElementById('preview');
-
-            // 清除之前的文本框
-            const existingBoxes = imageContainer.querySelectorAll('.text-box, .text-tooltip');
-            existingBoxes.forEach(box => box.remove());
-
-            // 获取图片的实际显示尺寸和位置
-            const imgRect = preview.getBoundingClientRect();
-            const containerRect = imageContainer.getBoundingClientRect();
-
-            // 计算图片相对于容器的偏移
-            const offsetX = imgRect.left - containerRect.left;
-            const offsetY = imgRect.top - containerRect.top;
-
-            // 计算缩放比例
-            const scaleX = imgRect.width / originalWidth;
-            const scaleY = imgRect.height / originalHeight;
-
-            // 为每个识别结果创建文本框
-            ocrResults.forEach((item, index) => {
-                // 创建文本框
-                const textBox = document.createElement('div');
-                textBox.className = 'text-box';
-
-                // 精确定位文本框，考虑图片在容器中的偏移
-                const left = item.left * scaleX + offsetX;
-                const top = item.top * scaleY + offsetY;
-                const width = (item.right - item.left) * scaleX;
-                const height = (item.bottom - item.top) * scaleY;
-
-                // 设置文本框位置和大小
-                textBox.style.left = `${left}px`;
-                textBox.style.top = `${top}px`;
-                textBox.style.width = `${width}px`;
-                textBox.style.height = `${height}px`;
-                textBox.dataset.index = index;
-
-                // 创建提示框
-                const tooltip = document.createElement('div');
-                tooltip.className = 'text-tooltip';
-                tooltip.innerHTML = `
-                    <div>${item.text}</div>
-                    <div class="confidence">置信度: ${(item.rate * 100).toFixed(2)}%</div>
-                `;
-
-                // 添加鼠标事件
-                textBox.addEventListener('mouseenter', function (e) {
-                    tooltip.style.left = `${e.pageX - imageContainer.offsetLeft + 10}px`;
-                    tooltip.style.top = `${e.pageY - imageContainer.offsetTop + 10}px`;
-                    tooltip.style.display = 'block';
-                });
-
-                textBox.addEventListener('mousemove', function (e) {
-                    tooltip.style.left = `${e.pageX - imageContainer.offsetLeft + 10}px`;
-                    tooltip.style.top = `${e.pageY - imageContainer.offsetTop + 10}px`;
-                });
-
-                textBox.addEventListener('mouseleave', function () {
-                    tooltip.style.display = 'none';
-                });
-
-                imageContainer.appendChild(textBox);
-                imageContainer.appendChild(tooltip);
-            });
-        }
-
-        // 工具函数
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function urlToBase64(url) {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            return fileToBase64(blob);
-        }
-
-        function showLoading() {
-            document.getElementById('loading').style.display = 'block';
-        }
-
-        function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        function clearError() {
-            document.getElementById('error').style.display = 'none';
-        }
-
-        // 初始化示例响应显示
-        document.getElementById('responseSample').textContent = JSON.stringify({
-            "result": {
-                "errcode": 0,
-                "height": 258,
-                "imgpath": "temp/0cfbda36-a05d-4cba-9a72-cec6833d305d.png",
-                "ocr_response": [
-                    {
-                        "bottom": 41.64999771118164,
-                        "left": 33.6875,
-                        "rate": 0.9951504468917847,
-                        "right": 164.76248168945312,
-                        "text": "API接口说明",
-                        "top": 18.98750114440918
-                    }
-                ],
-                "width": 392
+        // ---------- table ----------
+        function renderTable(items, origIdx) {
+            resultBody.innerHTML = '';
+            if (!items.length) {
+                resultBody.innerHTML = '<tr class="empty-row"><td colspan="3">未识别到文字</td></tr>';
+                return;
             }
-        }, null, 2);
+            items.forEach((it, i) => {
+                const idx = origIdx ? origIdx[i] : i;
+                const pct = (it.rate * 100);
+                const cls = pct >= 99 ? 'hi' : pct >= 95 ? 'mid' : 'lo';
+                const tr = document.createElement('tr');
+                tr.dataset.idx = idx;
+                tr.innerHTML =
+                    '<td class="col-text" title="' + esc(it.text) + '">' + esc(it.text) + '<span class="copy-ico">⧉</span></td>' +
+                    '<td><span class="rate ' + cls + '">' + pct.toFixed(2) + '%</span></td>' +
+                    '<td class="coord">' + f(it.left) + ', ' + f(it.top) + ', ' + f(it.right) + ', ' + f(it.bottom) + '</td>';
+                tr.addEventListener('mouseenter', () => highlight(idx, true));
+                tr.addEventListener('mouseleave', () => highlight(idx, false));
+                tr.addEventListener('click', (e) => {
+                    if (ctrlMode) { toggleCtrlSelect(idx); return; }
+                    copyText(it.text); tr.classList.add('copied'); setTimeout(() => tr.classList.remove('copied'), 1500);
+                });
+                resultBody.appendChild(tr);
+            });
+        }
+
+        // ---------- boxes overlay ----------
+        function clearBoxes() { imgWrap.querySelectorAll('.box').forEach(b => b.remove()); }
+
+        function drawBoxes(items, ow, oh) {
+            clearBoxes();
+            const natW = preview.naturalWidth || ow;
+            const natH = preview.naturalHeight || oh;
+            if (!natW || !natH) return;
+            // WeChat OCR bounding boxes are biased ~3px upward (extra top padding,
+            // text spills below bottom). Shift boxes down to center text visually.
+            const Y_FIX = 3;
+            items.forEach((it, i) => {
+                const pct = it.rate * 100;
+                const c = pct >= 99 ? '#07c160' : pct >= 95 ? '#f59e0b' : '#ef4444';
+                const box = document.createElement('div');
+                box.className = 'box';
+                box.dataset.idx = i;
+                box.style.left = (it.left / natW * 100) + '%';
+                box.style.top = ((it.top + Y_FIX) / natH * 100) + '%';
+                box.style.width = ((it.right - it.left) / natW * 100) + '%';
+                box.style.height = ((it.bottom - it.top) / natH * 100) + '%';
+                box.style.borderColor = c;
+                box.style.background = hexA(c, 0.10);
+                box.innerHTML = '<span class="tag">' + esc((it.text || '').slice(0, 20)) + '</span>';
+                box.addEventListener('mouseenter', () => highlight(i, true));
+                box.addEventListener('mouseleave', () => highlight(i, false));
+                box.addEventListener('click', (e) => {
+                    if (ctrlMode) { toggleCtrlSelect(i); return; }
+                    copyText(it.text);
+                });
+                imgWrap.appendChild(box);
+            });
+        }
+
+        // ---------- hover sync ----------
+        function highlight(idx, on) {
+            const box = imgWrap.querySelector('.box[data-idx="' + idx + '"]');
+            const row = resultBody.querySelector('tr[data-idx="' + idx + '"]');
+            [box, row].forEach(el => el && el.classList.toggle('active', on));
+            // scroll the row into view within its scroll container only — never move the page
+            if (on && row) {
+                const c = row.closest('.table-scroll');
+                if (!c) return;
+                const cTop = c.scrollTop, cBot = cTop + c.clientHeight;
+                const rTop = row.offsetTop, rBot = rTop + row.offsetHeight;
+                if (rTop < cTop) c.scrollTop = rTop;
+                else if (rBot > cBot) c.scrollTop = rBot - c.clientHeight;
+            }
+        }
+
+        // ---------- brush mode ----------
+        $('modeToggle').addEventListener('click', (e) => {
+            const btn = e.target.closest('.mode-btn');
+            if (!btn) return;
+            setMode(btn.dataset.mode);
+        });
+
+        function setMode(mode, skipSave) {
+            brushMode = (mode === 'brush');
+            document.querySelectorAll('.mode-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.mode === mode));
+            if (!skipSave) try { localStorage.setItem('wxocr-mode', mode); } catch(e) {}
+            if (!lastResult) return;
+            if (brushMode) {
+                if (ctrlMode) exitCtrlMode(false);
+                imgWrap.classList.add('brush-on');
+                resizeBrushCanvas();
+                updateSelectionVisuals();
+                actionBar.classList.add('show');
+                updateLegendBrush();
+                updateTableBrush();
+            } else {
+                exitBrush();
+            }
+        }
+
+        function exitBrush() {
+            brushMode = false;
+            imgWrap.classList.remove('brush-on');
+            imgWrap.querySelectorAll('.box').forEach(b => b.classList.remove('selected', 'dimmed'));
+            clearBrushCanvas();
+            actionBar.classList.remove('show');
+            selectedSet.clear();
+            strokePts = [];
+            restoreLegend();
+            if (lastResult) {
+                const items = lastResult.ocr_response || [];
+                renderTable(items);
+                countEl.textContent = items.length + ' 条';
+            }
+        }
+
+        function resizeBrushCanvas() {
+            const w = preview.clientWidth || preview.naturalWidth;
+            const h = preview.clientHeight || preview.naturalHeight;
+            if (!w || !h) return;
+            brushCanvas.width = w;
+            brushCanvas.height = h;
+            redrawBrush();
+        }
+
+        function clearBrushCanvas() {
+            brushCtx.clearRect(0, 0, brushCanvas.width, brushCanvas.height);
+        }
+
+        function redrawBrush() {
+            clearBrushCanvas();
+            if (strokePts.length < 2) return;
+            brushCtx.strokeStyle = 'rgba(59,130,246,.35)';
+            brushCtx.lineWidth = Math.max(12, brushCanvas.width * 0.02);
+            brushCtx.lineCap = 'round';
+            brushCtx.lineJoin = 'round';
+            brushCtx.beginPath();
+            brushCtx.moveTo(strokePts[0].x, strokePts[0].y);
+            for (let i = 1; i < strokePts.length; i++) brushCtx.lineTo(strokePts[i].x, strokePts[i].y);
+            brushCtx.stroke();
+        }
+
+        function getCanvasPt(e) {
+            const r = brushCanvas.getBoundingClientRect();
+            return { x: e.clientX - r.left, y: e.clientY - r.top };
+        }
+
+        brushCanvas.addEventListener('pointerdown', (e) => {
+            if (!brushMode) return;
+            e.preventDefault();
+            isDrawing = true;
+            strokePts = [getCanvasPt(e)];
+            brushCanvas.setPointerCapture(e.pointerId);
+            hitTest();
+            redrawBrush();
+        });
+
+        brushCanvas.addEventListener('pointermove', (e) => {
+            if (!isDrawing) return;
+            strokePts.push(getCanvasPt(e));
+            hitTest();
+            redrawBrush();
+        });
+
+        brushCanvas.addEventListener('pointerup', (e) => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            brushCanvas.releasePointerCapture(e.pointerId);
+            setTimeout(() => clearBrushCanvas(), 350);
+        });
+
+        brushCanvas.addEventListener('pointercancel', () => { isDrawing = false; clearBrushCanvas(); });
+
+        function hitTest() {
+            if (!lastResult) return;
+            const items = lastResult.ocr_response || [];
+            const natW = preview.naturalWidth, natH = preview.naturalHeight;
+            if (!natW || !natH) return;
+            const Y_FIX = 3;
+            const sx = natW / brushCanvas.width;
+            const sy = natH / brushCanvas.height;
+            const last = strokePts[strokePts.length - 1];
+            if (!last) return;
+            const ix = last.x * sx, iy = last.y * sy;
+            items.forEach((it, i) => {
+                if (ix >= it.left && ix <= it.right && iy >= it.top + Y_FIX && iy <= it.bottom + Y_FIX)
+                    selectedSet.add(i);
+            });
+            updateSelectionVisuals();
+        }
+
+        function updateSelectionVisuals() {
+            imgWrap.querySelectorAll('.box').forEach(b => {
+                const idx = +b.dataset.idx;
+                b.classList.toggle('selected', selectedSet.has(idx));
+                b.classList.toggle('dimmed', !selectedSet.has(idx));
+            });
+            updateActionBar();
+            if (brushMode) updateTableBrush();
+        }
+
+        function updateActionBar() {
+            const n = selectedSet.size;
+            $('selCount').textContent = n;
+            $('btnCopySel').disabled = n === 0;
+        }
+
+        function updateTableBrush() {
+            if (!lastResult) return;
+            const items = lastResult.ocr_response || [];
+            const allIdx = items.map((_, i) => i);
+            const sorted = sortByReadingOrder(allIdx, items);
+            const selIdx = sorted.filter(i => selectedSet.has(i));
+            const sel = selIdx.map(i => items[i]);
+            renderTable(sel, selIdx);
+            countEl.textContent = sel.length + ' / ' + items.length + ' 条';
+            countEl.style.background = '#dbeafe';
+            countEl.style.color = '#2563eb';
+        }
+
+        function updateLegendBrush() {
+            legendEl.innerHTML =
+                '<span><i style="background:#2563eb"></i>已选中</span>' +
+                '<span><i style="background:#07c160;opacity:.3"></i>未选中</span>' +
+                '<span><i style="background:#3b82f6;border-radius:50%"></i>涂抹轨迹</span>' +
+                '<span style="margin-left:auto" id="dimMeta">' + (lastResult ? lastResult.width + ' × ' + lastResult.height + ' px' : '') + '</span>';
+        }
+
+        function restoreLegend() {
+            legendEl.innerHTML =
+                '<span><i style="background:#07c160"></i>识别框</span>' +
+                '<span><i style="background:#f59e0b"></i>可信率 95–99%</span>' +
+                '<span><i style="background:#ef4444"></i>可信率 &lt;95%</span>' +
+                '<span style="margin-left:auto" id="dimMeta">' + (lastResult ? lastResult.width + ' × ' + lastResult.height + ' px' : '') + '</span>';
+            countEl.style.background = '';
+            countEl.style.color = '';
+        }
+
+        // ---------- reading-order sort ----------
+        function sortByReadingOrder(indices, items) {
+            return indices.slice().sort((a, b) => {
+                const ia = items[a], ib = items[b];
+                const aTop = ia.top, aBot = ia.bottom, bTop = ib.top, bBot = ib.bottom;
+                const overlap = Math.min(aBot, bBot) - Math.max(aTop, bTop);
+                const minH = Math.min(aBot - aTop, bBot - bTop);
+                if (overlap > minH * 0.5) return ia.left - ib.left;
+                return aTop - bTop;
+            });
+        }
+
+        function getSortedSelectedText(selSet) {
+            if (!lastResult || selSet.size === 0) return '';
+            const items = lastResult.ocr_response || [];
+            const sorted = sortByReadingOrder([...selSet], items);
+            return sorted.map(i => items[i].text).join('\n');
+        }
+
+        // ---------- ctrl toggle selection mode ----------
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Control' && !e.repeat && !brushMode && lastResult) {
+                if (!ctrlMode) enterCtrlMode();
+                else exitCtrlMode(true);
+            }
+            if (e.key === 'Escape' && ctrlMode) exitCtrlMode(false);
+            if (e.key === 'Enter' && ctrlMode) exitCtrlMode(true);
+        });
+
+        function enterCtrlMode() {
+            ctrlMode = true;
+            ctrlHint.classList.add('show');
+            updateCtrlCnt();
+        }
+
+        function exitCtrlMode(copy) {
+            ctrlMode = false;
+            ctrlHint.classList.remove('show');
+            if (copy && ctrlSelected.size > 0) {
+                const text = getSortedSelectedText(ctrlSelected);
+                copyText(text);
+                setTimeout(() => clearCtrlSelection(), 1500);
+            } else {
+                clearCtrlSelection();
+            }
+        }
+
+        function toggleCtrlSelect(idx) {
+            if (ctrlSelected.has(idx)) ctrlSelected.delete(idx);
+            else ctrlSelected.add(idx);
+            updateCtrlVisuals();
+            updateCtrlCnt();
+        }
+
+        function updateCtrlCnt() {
+            ctrlCnt.textContent = ctrlSelected.size;
+        }
+
+        function updateCtrlVisuals() {
+            imgWrap.querySelectorAll('.box').forEach(b => {
+                b.classList.toggle('selected', ctrlSelected.has(+b.dataset.idx));
+            });
+            resultBody.querySelectorAll('tr').forEach(tr => {
+                tr.classList.toggle('selected', ctrlSelected.has(+tr.dataset.idx));
+            });
+        }
+
+        function clearCtrlSelection() {
+            ctrlSelected.clear();
+            updateCtrlVisuals();
+            updateCtrlCnt();
+        }
+
+        // action bar buttons
+        $('btnCopySel').addEventListener('click', () => {
+            if (!lastResult || selectedSet.size === 0) return;
+            copyText(getSortedSelectedText(selectedSet));
+        });
+        $('btnSelectAll').addEventListener('click', () => {
+            if (!lastResult) return;
+            const items = lastResult.ocr_response || [];
+            items.forEach((_, i) => selectedSet.add(i));
+            updateSelectionVisuals();
+        });
+        $('btnClear').addEventListener('click', () => {
+            selectedSet.clear();
+            updateSelectionVisuals();
+        });
+
+        // re-fit canvas on window resize
+        window.addEventListener('resize', () => { if (brushMode) resizeBrushCanvas(); });
+
+        // ---------- helpers ----------
+        const toastEl = $('toast');
+        let toastTimer = null;
+        function showToast(msg) {
+            toastEl.textContent = msg;
+            toastEl.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1500);
+        }
+        function copyText(text) {
+            if (!text) return;
+            const done = () => showToast('已复制：' + (text.length > 24 ? text.slice(0, 24) + '…' : text));
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done).catch(fallbackCopy);
+            } else { fallbackCopy(); }
+            function fallbackCopy() {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); done(); } catch (e) {}
+                document.body.removeChild(ta);
+            }
+        }
+        function setStatus(html, type) {
+            statusEl.innerHTML = html;
+            statusEl.classList.toggle('success', type === 'success');
+            statusEl.classList.toggle('error', type === true || type === 'error');
+        }
+        function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+        function f(n) { return (Math.round((n || 0) * 10) / 10).toString(); }
+        function hexA(hex, a) {
+            const h = hex.replace('#', '');
+            const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+            return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+        }
     </script>
 </body>
 

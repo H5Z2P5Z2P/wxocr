@@ -1,0 +1,15 @@
+--- a/src/pyspt.cpp
++++ b/src/pyspt.cpp
+@@ -44,7 +44,11 @@
+ 	}
+ 
+ 	CWeChatOCR::result_t res{};
+-	if (!g_ocr_obj->doOCR(imgpath, &res)) {
++	bool ocr_ok;
++	Py_BEGIN_ALLOW_THREADS
++	ocr_ok = g_ocr_obj->doOCR(imgpath, &res);
++	Py_END_ALLOW_THREADS
++	if (!ocr_ok) {
+ 		PyErr_SetString(PyExc_RuntimeError, "wechatocr doOCR failed");
+ 		return NULL;
+ 	}

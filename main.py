@@ -1,9 +1,11 @@
 import wcocr
 import os
+import gc
 import uuid
 import base64
 from flask import Flask, request, jsonify, render_template, send_from_directory
 
+gc.set_threshold(500, 5, 5)
 app = Flask(__name__)
 wcocr.init("./wx/opt/wechat/wxocr", "./wx/opt/wechat")
 
@@ -20,10 +22,9 @@ def ocr():
         if not image_type:
             return jsonify({"error": "Invalid base64 image data"}), 400
 
-        # Create temp directory if not exists
-        temp_dir = "temp"
-        if not os.path.exists(temp_dir):
-            os.makedirs(temp_dir)
+        # Use /dev/shm (tmpfs) for temp files — avoids disk I/O
+        temp_dir = os.environ.get("TMP_DIR", "/dev/shm/wxocr")
+        os.makedirs(temp_dir, exist_ok=True)
 
         # Generate unique filename and save image
         filename = os.path.join(temp_dir, f"{str(uuid.uuid4())}.{image_type}")
